@@ -1,0 +1,30 @@
+clc;
+clear;
+close all;
+%%
+filepath='/glade/work/gwarner/HCR/hom_ug15_phi0_H005_large/output/';
+%filepath='/glade/derecho/scratch/gwarner/het_ug8_lx6_phi90/output/';
+filename='w_slice_output/r_z16_t0001_k120.nc';
+%filename='r_z32_snap_k120.nc';
+ug=15;
+Lx=12000;
+Ly=12000;
+nx=240;
+ny=240;
+avg_width=1;
+lvl=16;
+filter=120;
+neg_angles=1;
+contour_levels=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9];
+use_levels=[0.2,0.3,0.4,0.5,0.6];
+ABL_depth=1100;
+%%
+w=ncread([filepath,filename],'w');
+timesteps=ncread([filepath,filename],'time');
+%%
+w_init=squeeze(w(:,:,1));
+for n=1:length(timesteps)
+    w_shift=squeeze(w(:,:,n));
+    R=corrcoef(w_init(:),w_shift(:));
+    corr(n)=R(1,2);
+end
