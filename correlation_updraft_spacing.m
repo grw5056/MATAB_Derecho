@@ -3,9 +3,8 @@ clear;
 close all;
 %%
 filepath='/glade/work/gwarner/HCR/hom_ug15_phi0_H005_large/output/';
-%filepath='/glade/derecho/scratch/gwarner/het_ug8_lx6_phi90/output/';
-filename='w_slice_output/r_z16_t0001_k004.nc';
-%filename='r_z32_snap_k120.nc';
+filename_r='w_slice_output/r_z16_t0001_k120.nc';
+filename_w='w_slice_output/w_z16_t0001_k120.nc';
 ug=15;
 Lx=12000;
 Ly=12000;
@@ -13,7 +12,7 @@ nx=240;
 ny=240;
 avg_width=1;
 lvl=16;
-filter=4;
+filter=120;
 neg_angles=1;
 contour_levels=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9];
 use_levels=[0.2,0.3,0.4,0.5,0.6];
@@ -37,13 +36,9 @@ xtick_input_r(1)=(-Lx)+(Lx/nx/1000);
 ytick_input_r=linspace(-(Ly/1000),(Ly/1000),7);
 yticklabel_input_r=compose('%d',ytick_input_r);
 ytick_input_r(1)=(-Ly)+(Ly/ny/1000);
-% xtick_input_r=[-12+(Lx/nx/1000),-8,-4,0,4,8,12];
-% xticklabel_input_r={'-12','-8','-4','0','4','8','12'};
-% ytick_input_r=[-12+(Ly/ny/1000),-8,-4,0,4,8,12];
-% yticklabel_input_r={'-12','-8','-4','0','4','8','12'};
 %%
-r=ncread([filepath,filename],'r');
-timesteps=ncread([filepath,filename],'time');
+r=ncread([filepath,filename_r],'r');
+timesteps=ncread([filepath,filename_r],'time');
 %%
 padding=Lx/2;
 dx=Lx/nx;
@@ -67,7 +62,7 @@ corner_coordinates = [
 %%
 for k=1:length(timesteps)
     %%
-    t=figure('Visible','off');
+    t=figure;%('Visible','off');
     [~,hContourLines]=contour(x,y,squeeze(r(:,:,k))',contour_levels,'--','HandleVisibility','off');
     hold on
     plot(NaN,NaN,'color',colors(1,:),'linestyle','--')
