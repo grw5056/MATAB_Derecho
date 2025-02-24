@@ -3,20 +3,20 @@ clear;
 close all;
 %%
 filepath='/glade/work/gwarner/HCR/hom_ug15_phi0_H005_large/output/';
-filename_r='w_slice_output/r_z16_t0001_k120.nc';
-filename_w='w_slice_output/w_z16_t0001_k120.nc';
+filename_r='w_slice_output/r_z16_t1000_k120.nc';
+filename_w='w_slice_output/w_z16_t1000_k120.nc';
 ug=15;
 Lx=12000;
 Ly=12000;
 nx=240;
 ny=240;
-avg_width=1;
+avg_width=100;
 lvl=16;
 filter=120;
-neg_angles=1;
 contour_levels=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9];
-use_levels=[0.2,0.3,0.4,0.5,0.6];
+use_levels=0.2;
 ABL_depth=1100;
+updraft_width=1.5; %Excepted updraft width normalized by zi
 %% Colormap
 colors = [
     0.8500, 0.3250, 0.0980;  % Red
@@ -38,6 +38,7 @@ yticklabel_input_r=compose('%d',ytick_input_r);
 ytick_input_r(1)=(-Ly)+(Ly/ny/1000);
 %%
 r=ncread([filepath,filename_r],'r');
+w=ncread([filepath,filename_w],'w');
 timesteps=ncread([filepath,filename_r],'time');
 %%
 padding=Lx/2;
@@ -62,7 +63,7 @@ corner_coordinates = [
 %%
 for k=1:length(timesteps)
     %%
-    t=figure;%('Visible','off');
+    t=figure('Visible','off');
     [~,hContourLines]=contour(x,y,squeeze(r(:,:,k))',contour_levels,'--','HandleVisibility','off');
     hold on
     plot(NaN,NaN,'color',colors(1,:),'linestyle','--')
@@ -96,12 +97,10 @@ for k=1:length(timesteps)
     text(0.01,1.02,['Timestep = ',num2str(timesteps(k))],'units','normalized','Interpreter','latex')
     set(gca,'Fontsize',12)
     contourData = hContourLines.ContourMatrix;
-    stored_array_x=[];
-    stored_array_y=[];
-    check_num=1;
     cont_num=1;
     i=1;
     phi_num=1;
+    temp_phi=0;
     while i <= size(contourData, 2)
         level = contourData(1, i); % The first element is the contour level
         numPoints = contourData(2, i); % Find the length of this contour line
@@ -109,22 +108,16 @@ for k=1:length(timesteps)
         yCoords = contourData(2,i+1:i+numPoints);
         if xCoords(1)~=xCoords(end) || yCoords(1)~=yCoords(end) 
             i = i + numPoints + 1; % Move to the next contour line
-            if any(use_levels==level) && any(round(xCoords,2)>-(Lx/2000)) && any(round(xCoords,2)<=(Lx/2000)) && any(round(yCoords,2)>-(Lx/2000)) && any(round(yCoords,2)<=(Lx/2000))
-                phi(phi_num)=atand((yCoords(end)-yCoords(1))/(xCoords(end)-xCoords(1)));
-                weight(phi_num)=length(yCoords);
-                phi_num=phi_num+1;
-            end
         elseif length(xCoords)<=15
             i=i+numPoints+1;
         elseif all(round(xCoords,2)>-(Lx/2000)) && all(round(xCoords,2)<=(Lx/2000)) && all(round(yCoords,2)>-(Lx/2000)) && all(round(yCoords,2)<=(Lx/2000))
             if any(level==use_levels)
-                [struc,phi(phi_num)]=fit_ellipse(xCoords,yCoords);
+                [struc,temp_phi(phi_num)]=fit_ellipse(xCoords,yCoords);
                 X0(cont_num)=struc.X0_in;
                 Y0(cont_num)=struc.Y0_in;
-                weight(phi_num)=length(yCoords);
+                phi_num=phi_num+1;
                 i = i + numPoints + 1; % Move to the next contour line
                 cont_num=cont_num+1;
-                phi_num=phi_num+1;
             else
                 [struc]=fit_ellipse(xCoords,yCoords);
                 X0(cont_num)=struc.X0_in;
@@ -133,15 +126,10 @@ for k=1:length(timesteps)
                 cont_num=cont_num+1;
             end
         elseif any(round(xCoords,2)>-(Lx/2000)) && any(round(xCoords,2)<=(Lx/2000)) && any(round(yCoords,2)>-(Lx/2000)) && any(round(yCoords,2)<=(Lx/2000))
-            [struc,temp_phi]=fit_ellipse(xCoords,yCoords);
+            [struc]=fit_ellipse(xCoords,yCoords);
             if round(struc.X0_in,2)>-(Lx/2000) && round(struc.X0_in,2)<=(Lx/2000) && round(struc.Y0_in,2)>-(Lx/2000) && round(struc.Y0_in,2)<=(Lx/2000)
                 X0(cont_num)=struc.X0_in;
                 Y0(cont_num)=struc.Y0_in;
-                if any(level==use_levels)
-                    phi(phi_num)=temp_phi;
-                    weight(phi_num)=length(yCoords);
-                    phi_num=phi_num+1;
-                end
                 i = i + numPoints + 1; % Move to the next contour line
                 cont_num=cont_num+1;
             else
@@ -151,12 +139,10 @@ for k=1:length(timesteps)
             i=i+numPoints+1;
         end
     end
-    if neg_angles==0
-        phi(phi<0)=180+phi(phi<0);
-    end
-    average_angle(k)=sum(phi.*weight)/sum(weight);
-    rotated_X0=(X0.*cosd(-average_angle(k)))-(Y0.*sind(-average_angle(k)));
-    rotated_Y0=(X0.*sind(-average_angle(k)))+(Y0.*cosd(-average_angle(k)));
+    HCR_angle(k)=HCR_orientation(squeeze(w(:,:,k)));
+    phi(k)=mean(temp_phi);
+    rotated_X0=(X0.*cosd(-HCR_angle(k)))-(Y0.*sind(-HCR_angle(k)));
+    rotated_Y0=(X0.*sind(-HCR_angle(k)))+(Y0.*cosd(-HCR_angle(k)));
     scatter(X0,Y0,'filled','MarkerFaceColor','black','MarkerEdgeColor','black','HandleVisibility','off');
     hold on
     scatter(rotated_X0,rotated_Y0,'filled','MarkerFaceColor','red','MarkerEdgeColor','red','HandleVisibility','off');
@@ -169,7 +155,7 @@ for k=1:length(timesteps)
             rotated_Y0(n)=rotated_Y0(n)+(Lx/1000);
         end
     end
-    group_averages=groupaverages(Y0,1.5*ABL_depth);
+    group_averages=groupaverages(Y0,updraft_width*ABL_depth);
     if max(group_averages)>((Lx/2000)-1) && min(group_averages)<-((Lx/2000)-1)
         [minval,minloc]=min(group_averages);
         [maxval,maxloc]=max(group_averages);
@@ -214,5 +200,6 @@ for k=1:length(timesteps)
         spacing_rot(k)=Ly;
     end  
 end
+%%
 save([filepath,'figures/r_snapshots/correlation_spacing_z',num2str(lvl),'_t',num2str(avg_width),'_k',num2str(filter),'.txt'],"spacing","-ascii")
 save([filepath,'figures/r_snapshots/correlation_spacing_rot_z',num2str(lvl),'_t',num2str(avg_width),'_k',num2str(filter),'.txt'],"spacing_rot","-ascii")
